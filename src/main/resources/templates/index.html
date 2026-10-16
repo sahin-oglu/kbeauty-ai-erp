@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kbeauty ERP</title>
+</head>
+<body>
+  <header><h1>Kbeauty ERP</h1><a th:href="@{/swagger-ui/index.html}">API documentation</a></header>
+  <main>
+    <h2>Ask your ERP</h2>
+    <p>Request a table, chart, metric, or stock form. Each question is independent.</p>
+    <p th:unless="${aiEnabled}">Start the application with the ai profile to use this page.</p>
+    <form id="question-form" method="post" th:action="@{/views}">
+      <p><label for="message">Question</label></p>
+      <p><textarea id="message" name="message" rows="3" cols="30" maxlength="4000" required th:text="${question}"></textarea></p>
+      <button type="submit" th:disabled="${!aiEnabled}">Create view</button>
+    </form>
+    <details>
+      <summary>Example questions</summary>
+      <form method="post" th:action="@{/views}">
+        <p><button name="message" value="Show low stock products as a table." th:disabled="${!aiEnabled}">Low-stock table</button></p>
+        <p><button name="message" value="Show top-selling products as a bar chart." th:disabled="${!aiEnabled}">Sales chart</button></p>
+        <p><button name="message" value="How many low-stock products are there? Show a metric." th:disabled="${!aiEnabled}">Stock metric</button></p>
+        <p><button name="message" value="Create a restock form for low-stock products." th:disabled="${!aiEnabled}">Restock forms</button></p>
+      </form>
+    </details>
+    <p>Creating a view may take a moment while the local model runs.</p>
+    <p role="status" th:if="${notice}" th:text="${notice}"></p>
+    <div role="alert" th:if="${error}"><p><strong>Error:</strong> <span th:text="${error}"></span></p><p>Any previous result remains below.</p></div>
+    <section th:if="${view != null}" th:switch="${view.type().name()}">
+      <h2 th:text="${view.title()}"></h2>
+      <div th:case="'TABLE'">
+        <p><a th:href="@{/table.csv(viewId=${viewId})}">Download CSV</a></p>
+        <p th:if="${view.rows().isEmpty()}">No records match this view.</p>
+        <table th:unless="${view.rows().isEmpty()}">
+          <caption th:text="${view.title()}"></caption>
+          <thead><tr><th scope="col" th:each="column : ${view.columns()}" th:text="${column}"></th></tr></thead>
+          <tbody><tr th:each="row : ${view.rows()}"><td th:each="column : ${view.columns()}" th:text="${row.get(column)}"></td></tr></tbody>
+        </table>
+      </div>
+      <div th:case="'METRIC'"><p><strong th:text="${view.value()}"></strong> <span th:text="${view.unit()}"></span></p></div>
+      <div th:case="'CHART'">
+        <p th:text="${view.chart().yLabel()}"></p>
+        <p th:if="${view.rows().isEmpty()}">No data to chart.</p>
+        <ul><li th:each="row : ${view.rows()}">
+          <span th:text="${row.get(view.chart().xKey())}"></span>:
+          <meter min="0" th:max="${chartMaximum}" th:value="${row.get(view.chart().yKey())}" th:aria-label="${row.get(view.chart().xKey())}"></meter>
+          <span th:text="${row.get(view.chart().yKey())}"></span>
+        </li></ul>
+      </div>
+      <div th:case="'FORM'">
+        <p th:if="${view.forms().isEmpty()}">No products need a stock form.</p>
+        <form th:each="stock : ${view.forms()}" method="post" th:action="@{/stock/{id}(id=${stock.productId()})}">
+          <fieldset>
+            <legend th:text="${stock.productName()}"></legend>
+            <p>Product <span th:text="${stock.productId()}"></span></p>
+            <p>Set the total stock balance, not the amount to add.</p>
+            <input type="hidden" name="viewId" th:value="${viewId}">
+            <p th:each="field : ${stock.fields()}"><label><span th:text="${field.label()}"></span>
+              <input type="number" min="0" max="2147483647" step="1" required th:name="${field.name()}" th:value="${field.value()}">
+            </label></p>
+            <button type="submit">Save stock</button>
+          </fieldset>
+        </form>
+      </div>
+    </section>
+    <details th:if="${view != null}"><summary>View response JSON</summary><pre th:text="${json}"></pre></details>
+  </main>
+  <footer><p>Local prototype · Ollama + Spring AI</p></footer>
+</body>
+</html>

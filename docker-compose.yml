@@ -1,0 +1,27 @@
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: kbeauty_erp
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  postgres-demo:
+    image: postgres:17
+    profiles: [demo]
+    environment:
+      POSTGRES_DB: kbeauty_demo
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5434:5432"
+    volumes:
+      - demo_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
+  demo_data:
